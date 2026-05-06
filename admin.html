@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Business Admin - Secure Access</title>
+    <style>
+        :root { --primary: #3498db; --danger: #e74c3c; --success: #2ecc71; --dark: #2c3e50; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; display: flex; justify-content: center; padding: 20px; }
+        .admin-container { max-width: 800px; width: 100%; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: none; }
+        .login-gate { text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        input, textarea, select { width: 100%; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 6px; }
+        button { cursor: pointer; border: none; border-radius: 6px; font-weight: bold; transition: 0.3s; }
+        .btn-main { background: var(--primary); color: white; width: 100%; padding: 15px; margin-top: 10px; }
+        .item-row { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; gap: 15px; }
+        .item-row img { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; }
+        
+        /* MODAL STYLES */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 10% auto; padding: 20px; width: 50%; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+    <div id="loginGate" class="login-gate">
+        <h2>Admin Access</h2>
+        <input type="password" id="passInput" placeholder="Enter Admin Password">
+        <button class="btn-main" onclick="checkPass()">Unlock Dashboard</button>
+    </div>
+
+    <div id="adminPanel" class="admin-container">
+        <h2>Store Branding</h2>
+        <input type="file" id="logoInput" accept="image/*">
+        <hr>
+        <h2>Add New Product</h2>
+        <input type="file" id="imageInput" accept="image/*">
+        <input type="text" id="nameInput" placeholder="Product Name">
+        <textarea id="descInput" placeholder="Description"></textarea>
+        <div style="display:flex; gap:10px;">
+            <input type="number" id="priceInput" placeholder="Price ($)">
+            <input type="number" id="stockInput" placeholder="Stock">
+        </div>
+        <select id="categoryInput">
+            <option value="General">General</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Clothing">Clothing</option>
+        </select>
+        <button class="btn-main" onclick="saveProduct()">Add Product</button>
+        
+        <div class="item-list" id="adminList"></div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3>Edit Product</h3>
+            <input type="hidden" id="editId">
+            <input type="text" id="editName">
+            <input type="number" id="editPrice">
+            <input type="number" id="editStock">
+            <button class="btn-main" onclick="updateProduct()">Update Changes</button>
+            <button onclick="closeModal()" style="background:#ccc; width:100%; padding:10px; margin-top:5px;">Cancel</button>
+        </div>
+    </div>
+
+<script>
+    const ADMIN_PASSWORD = "admin123";
+    let catalog = JSON.parse(localStorage.getItem('biz_catalog')) || [];
+    let currentImgBase64 = "";
+
+    function checkPass() {
+        if(document.getElementById('passInput').value === ADMIN_PASSWORD) {
+            document.getElementById('loginGate').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'block';
+            render();
+        } else { alert("Wrong password"); }
+    }
+
+    // Logo & Image Handling
+    document.getElementById('logoInput').onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => localStorage.setItem('biz_logo', ev.target.result);
+        reader.readAsDataURL(e.target.files[0]);
+    };
+
+    document.getElementById('imageInput').onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => currentImgBase64 = ev.target.result;
+        reader.readAsDataURL(e.target.files[0]);
+    };
+
+    function saveProduct() {
+        const p = {
+            id: Date.now(),
+            name: document.getElementById('nameInput').value,
+            desc: document.getElementById('descInput').value,
+            price: document.getElementById('priceInput').value,
+            stock: document.getElementById('stockInput').value,
+            category: document.getElementById('categoryInput').value,
+            image: currentImgBase64
+        };
+        catalog.push(p);
+        localStorage.setItem('biz_catalog', JSON.stringify(catalog));
+        render();
+    }
+
+    // --- EDIT LOGIC ---
+    function openEdit(id) {
+        const p = catalog.find(item => item.id === id);
+        document.getElementById('editId').value = p.id;
+        document.getElementById('editName').value = p.name;
+        document.getElementById('editPrice').value = p.price;
+        document.getElementById('editStock').value = p.stock;
+        document.getElementById('editModal').style.display = 'block';
+    }
+
+    function closeModal() { document.getElementById('editModal').style.display = 'none'; }
+
+    function updateProduct() {
+        const id = parseInt(document.getElementById('editId').value);
+        const index = catalog.findIndex(p => p.id === id);
+        
+        catalog[index].name = document.getElementById('editName').value;
+        catalog[index].price = document.getElementById('editPrice').value;
+        catalog[index].stock = document.getElementById('editStock').value;
+        
+        localStorage.setItem('biz_catalog', JSON.stringify(catalog));
+        closeModal();
+        render();
+    }
+
+    function deleteItem(id) {
+        catalog = catalog.filter(x => x.id !== id);
+        localStorage.setItem('biz_catalog', JSON.stringify(catalog));
+        render();
+    }
+
+    function render() {
+        const list = document.getElementById('adminList');
+        list.innerHTML = catalog.map(item => `
+            <div class="item-row">
+                <img src="${item.image}">
+                <div style="flex:1"><strong>${item.name}</strong> ($${item.price})</div>
+                <button onclick="openEdit(${item.id})" style="color:var(--primary); background:none; margin-right:10px;">Edit</button>
+                <button onclick="deleteItem(${item.id})" style="color:var(--danger); background:none;">Delete</button>
+            </div>
+        `).join('');
+    }
+</script>
+</body>
+</html>

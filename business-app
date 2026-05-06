@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProBusiness Landing Page & Manager</title>
+    <script src="https://www.paypal.com/sdk/js?client-id=test&currency=USD"></script>
+    <style>
+        :root { --primary: #3498db; --secondary: #2ecc71; --danger: #e74c3c; --dark: #2c3e50; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: var(--dark); }
+        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; max-width: 1200px; margin: auto; }
+        .panel { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
+        label { font-weight: bold; display: block; margin-top: 15px; }
+        input, textarea, select { width: 100%; margin: 8px 0; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        
+        /* Buttons */
+        .btn-save { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 20px; transition: 0.3s; }
+        .btn-save:hover { background: #2980b9; }
+
+        /* Preview Area */
+        #preview-img { max-width: 100%; height: 200px; object-fit: cover; border-radius: 8px; background: #eee; }
+        .price-tag { font-size: 1.8rem; color: var(--secondary); font-weight: bold; margin: 10px 0; }
+        .category-badge { background: #e8f4fd; color: var(--primary); padding: 4px 10px; border-radius: 15px; font-size: 0.8rem; }
+
+        /* Catalog Items */
+        .catalog-item { border: 1px solid #eee; padding: 15px; border-radius: 8px; margin-top: 15px; display: flex; gap: 15px; align-items: center; background: #fafafa; }
+        .catalog-item img { width: 70px; height: 70px; border-radius: 5px; object-fit: cover; }
+        
+        @media (max-width: 800px) { .container { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="panel">
+        <h2>Merchant Dashboard</h2>
+        
+        <label>Product Image</label>
+        <input type="file" id="imageInput" accept="image/*">
+        
+        <label>Product Name</label>
+        <input type="text" id="nameInput" placeholder="e.g. Classic Watch">
+        
+        <label>Description</label>
+        <textarea id="descInput" rows="3" placeholder="Enter product details..."></textarea>
+        
+        <div style="display: flex; gap: 10px;">
+            <div style="flex: 1;">
+                <label>Price (USD)</label>
+                <input type="number" id="priceInput" value="19.99">
+            </div>
+            <div style="flex: 1;">
+                <label>Stock</label>
+                <input type="number" id="stockInput" value="10">
+            </div>
+        </div>
+
+        <label>Category</label>
+        <select id="categoryInput">
+            <option value="General">General</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Clothing">Clothing</option>
+            <option value="Home">Home</option>
+        </select>
+
+        <button class="btn-save" id="saveBtn">Save Product to Catalog</button>
+
+        <hr style="margin-top: 30px;">
+        <h3>Your Catalog</h3>
+        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+            <input type="text" id="searchInput" placeholder="Search name..." style="flex: 2;">
+            <select id="filterCategory" style="flex: 1;">
+                <option value="All">All Categories</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Clothing">Clothing</option>
+                <option value="Home">Home</option>
+                <option value="General">General</option>
+            </select>
+        </div>
+        <div id="catalog-list"></div>
+    </div>
+
+    <div class="panel" id="customerView">
+        <h2>Customer Preview</h2>
+        <img id="preview-img" src="https://via.placeholder.com/400x200?text=No+Image+Selected" alt="Product">
+        <div style="margin-top: 15px;">
+            <span id="display-category" class="category-badge">General</span>
+            <h1 id="display-name" style="margin: 10px 0;">Product Name</h1>
+            <p id="display-desc">Product description will appear here...</p>
+            <p class="price-tag">$<span id="display-price">19.99</span></p>
+            <p id="stock-status">In Stock: <span id="display-stock">10</span></p>
+        </div>
+        
+        <div id="paypal-button-container"></div>
+        <div id="out-of-stock-msg" style="display:none; color: var(--danger); font-weight: bold; text-align: center; border: 2px solid var(--danger); padding: 10px; border-radius: 6px;">
+            SOLD OUT
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- STATE MANAGEMENT ---
+    let productCatalog = JSON.parse(localStorage.getItem('biz_catalog')) || [];
+    let currentPreviewImage = "https://via.placeholder.com/400x200?text=No+Image+Selected";
+
+    // --- DOM ELEMENTS ---
+    const elements = {
+        name: document.getElementById('nameInput'),
+        price: document.getElementById('priceInput'),
+        desc: document.getElementById('descInput'),
+        stock: document.getElementById('stockInput'),
+        category: document.getElementById('categoryInput'),
+        imgInput: document.getElementById('imageInput'),
+        search: document.getElementById('searchInput'),
+        filter: document.getElementById('filterCategory')
+    };
+
+    // --- PREVIEW LOGIC ---
+    function updatePreview() {
+        document.getElementById('display-name').innerText = elements.name.value || "Product Name";
+        document.getElementById('display-price').innerText = elements.price.value;
+        document.getElementById('display-desc').innerText = elements.desc.value || "Description here...";
+        document.getElementById('display-stock').innerText = elements.stock.value;
+        document.getElementById('display-category').innerText = elements.category.value;
+        
+        const isOutOfStock = parseInt(elements.stock.value) <= 0;
+        document.getElementById('paypal-button-container').style.display = isOutOfStock ? 'none' : 'block';
+        document.getElementById('out-of-stock-msg').style.display = isOutOfStock ? 'block' : 'none';
+    }
+
+    elements.imgInput.addEventListener('change', function() {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            currentPreviewImage = e.target.result;
+            document.getElementById('preview-img').src = currentPreviewImage;
+        };
+        reader.readAsDataURL(this.files[0]);
+    });
+
+    [elements.name, elements.price, elements.desc, elements.stock, elements.category].forEach(el => {
+        el.addEventListener('input', updatePreview);
+    });
+
+    // --- CATALOG LOGIC ---
+    function saveProduct() {
+        const product = {
+            id: Date.now(),
+            name: elements.name.value,
+            price: elements.price.value,
+            desc: elements.desc.value,
+            stock: elements.stock.value,
+            category: elements.category.value,
+            image: currentPreviewImage
+        };
+        productCatalog.push(product);
+        localStorage.setItem('biz_catalog', JSON.stringify(productCatalog));
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const term = elements.search.value.toLowerCase();
+        const cat = elements.filter.value;
+        const filtered = productCatalog.filter(p => {
+            return (p.name.toLowerCase().includes(term)) && (cat === "All" || p.category === cat);
+        });
+        renderList(filtered);
+    }
+
+    function renderList(list) {
+        const container = document.getElementById('catalog-list');
+        container.innerHTML = '';
+        list.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'catalog-item';
+            div.innerHTML = `
+                <img src="${item.image}">
+                <div style="flex-grow:1">
+                    <strong>${item.name}</strong><br>
+                    <small>$${item.price} | Stock: ${item.stock}</small>
+                </div>
+                <button onclick="deleteItem(${item.id})" style="color:var(--danger); border:none; background:none; cursor:pointer;">Remove</button>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    window.deleteItem = (id) => {
+        productCatalog = productCatalog.filter(p => p.id !== id);
+        localStorage.setItem('biz_catalog', JSON.stringify(productCatalog));
+        applyFilters();
+    };
+
+    document.getElementById('saveBtn').addEventListener('click', saveProduct);
+    elements.search.addEventListener('input', applyFilters);
+    elements.filter.addEventListener('change', applyFilters);
+
+    // --- PAYPAL INTEGRATION ---
+    paypal.Buttons({
+        createOrder: (data, actions) => {
+            if(parseInt(elements.stock.value) <= 0) return actions.reject();
+            return actions.order.create({
+                purchase_units: [{ amount: { value: elements.price.value } }]
+            });
+        },
+        onApprove: (data, actions) => {
+            return actions.order.capture().then(details => {
+                elements.stock.value = parseInt(elements.stock.value) - 1;
+                updatePreview();
+                alert('Success! Transaction by ' + details.payer.name.given_name);
+            });
+        }
+    }).render('#paypal-button-container');
+
+    // Initial Load
+    window.onload = applyFilters;
+</script>
+
+</body>
+</html>

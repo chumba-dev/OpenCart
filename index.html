@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Our Official Store</title>
+    <script src="https://www.paypal.com/sdk/js?client-id=test&currency=USD"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #fafafa; margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
+        .content { flex: 1; padding: 20px; }
+        .header { text-align: center; padding: 30px 20px; background: #fff; border-bottom: 1px solid #eee; margin-bottom: 30px; }
+        #store-logo { max-height: 80px; margin-bottom: 10px; }
+        .controls, .terms-bar { max-width: 1000px; margin: 0 auto 20px; display: flex; gap: 10px; }
+        .store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; max-width: 1000px; margin: auto; }
+        .card { background: white; border-radius: 12px; padding: 15px; border: 1px solid #eee; text-align: center; }
+        .card img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; }
+        footer { background: #2c3e50; color: white; padding: 40px 20px; margin-top: 50px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div class="content">
+        <div class="header">
+            <div id="logo-container"></div>
+            <h1 id="store-name">Our Store</h1>
+        </div>
+
+        <div class="controls">
+            <input type="text" id="search" placeholder="Search..." oninput="filter()" style="flex:3; padding:10px;">
+            <select id="catFilter" onchange="filter()" style="flex:1; padding:10px;">
+                <option value="All">All Categories</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Clothing">Clothing</option>
+            </select>
+        </div>
+
+        <div class="terms-bar">
+            <input type="checkbox" id="termsCheckbox">
+            <label>I agree to the Terms and Conditions</label>
+        </div>
+
+        <div id="storeGrid" class="store-grid"></div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Secure Shopping with PayPal</p>
+    </footer>
+
+<script>
+    (function(){ emailjs.init("YOUR_PUBLIC_KEY"); })();
+    
+    let catalog = JSON.parse(localStorage.getItem('biz_catalog')) || [];
+    const savedLogo = localStorage.getItem('biz_logo');
+
+    // Load Logo
+    if(savedLogo) {
+        document.getElementById('logo-container').innerHTML = `<img src="${savedLogo}" id="store-logo">`;
+        document.getElementById('store-name').style.display = 'none'; // Hide text if logo exists
+    }
+
+    const termsCheckbox = document.getElementById('termsCheckbox');
+    termsCheckbox.addEventListener('change', () => render(catalog));
+
+    function filter() {
+        const term = document.getElementById('search').value.toLowerCase();
+        const cat = document.getElementById('catFilter').value;
+        const filtered = catalog.filter(p => (p.name.toLowerCase().includes(term)) && (cat === "All" || p.category === cat));
+        render(filtered);
+    }
+
+    function render(list) {
+        const grid = document.getElementById('storeGrid');
+        grid.innerHTML = '';
+        list.forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <img src="${p.image}">
+                <h3>${p.name}</h3>
+                <p>$${p.price}</p>
+                <div id="paypal-${p.id}"></div>
+            `;
+            grid.appendChild(card);
+            
+            const container = document.getElementById('paypal-' + p.id);
+            if (!termsCheckbox.checked) {
+                container.innerHTML = "<button disabled>Accept Terms to Buy</button>";
+            } else {
+                paypal.Buttons({
+                    createOrder: (data, actions) => actions.order.create({ purchase_units: [{ amount: { value: p.price } }] }),
+                    onApprove: (data, actions) => actions.order.capture().then(details => {
+                        alert('Order successful!');
+                    })
+                }).render('#paypal-' + p.id);
+            }
+        });
+    }
+    window.onload = () => render(catalog);
+</script>
+</body>
+</html>

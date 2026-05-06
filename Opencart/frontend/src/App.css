@@ -1,0 +1,33 @@
+/* src/App.css */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f6f7f9;
+  color: #172033;
+}
+
+.app-main {
+  width: min(100%, 1240px);
+  margin: 0 auto;
+  flex: 1;
+  padding: 28px 20px 44px;
+}
+
+.auth-main {
+  min-height: 100vh;
+}
+
+.section-eyebrow {
+  color: #b45309;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .app-main {
+    padding: 18px 14px 32px;
+  }
+}
